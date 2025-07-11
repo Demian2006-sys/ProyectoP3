@@ -1,9 +1,0 @@
-+------------------------+------------+------------+------------+------------+--------+-----------------------------------------------+
-| Zona                   | CO2 (ppm)  | SO2 (ug/m3) | NO2 (ug/m3) | PM2.5 (ug/m3) | Alerta | Recomendación                                |
-+------------------------+------------+------------+------------+------------+--------+-----------------------------------------------+
-| Tumbaco                | 90.62      | 90.63      | 83.59      | 83.75      | SI     | Controlar trafico, crear cronograma para actividades al aire libre y control de gases industriales. |
-| La Carolina            | 90.70      | 90.75      | 83.07      | 84.54      | SI     | Controlar trafico, crear cronograma para actividades al aire libre y control de gases industriales. |
-| Calderón              | 90.75      | 84.33      | 83.96      | 91.37      | SI     | Controlar trafico, crear cronograma para actividades al aire libre y control de gases industriales. |
-| Valle de los chillos   | 90.91      | 83.25      | 83.56      | 91.66      | SI     | Controlar trafico, crear cronograma para actividades al aire libre y control de gases industriales. |
-| Centro historico       | 83.21      | 84.20      | 83.98      | 84.18      | SI     | Controlar trafico, crear cronograma para actividades al aire libre y control de gases industriales. |
-+------------------------+------------+------------+------------+------------+--------+-----------------------------------------------+
