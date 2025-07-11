@@ -74,6 +74,8 @@ void cargarDesdeArchivo(const char* nombreArchivo, Zona* zonas, int cantidad) {
 void monitorearContaminacion(Zona* zonas, int cantidad, float* limites) {
     for (int i = 0; i < cantidad; i++) {
         printf("\nZona: %s\n", zonas[i].nombre);
+
+        // Ingreso de contaminantes con alertas inmediatas
         for (int j = 0; j < 4; j++) {
             const char* nombreCont = (j == 0) ? "CO2" : (j == 1) ? "SO2" : (j == 2) ? "NO2" : "PM2.5";
             const char* unidad = (j == 0) ? "ppm" : "ug/m3";
@@ -81,19 +83,59 @@ void monitorearContaminacion(Zona* zonas, int cantidad, float* limites) {
             while (1) {
                 printf("  Ingrese nivel actual de %s (%s): ", nombreCont, unidad);
                 if (scanf("%f", &valor) != 1 || valor < 0 || valor > 9999) {
-                    printf("Valor inválido. Intente de nuevo.\n");
+                    printf("  Valor inválido. Debe estar entre 0 y 9999. Intente de nuevo.\n");
                     while (getchar() != '\n');
                 } else {
                     zonas[i].contaminantes[29][j] = valor;
                     zonas[i].alerta[j] = valor > limites[j];
+                    if (zonas[i].alerta[j]) {
+                        printf(" ALERTA: %s excede el límite (%.2f > %.2f)\n", nombreCont, valor, limites[j]);
+                    } else {
+                        printf(" %s dentro del rango permitido.\n", nombreCont);
+                    }
                     break;
                 }
             }
         }
-        // limpiar buffer por si queda basura
+
+        // Ingreso de temperatura
+        while (1) {
+            printf("  Ingrese temperatura actual (°C): ");
+            if (scanf("%f", &zonas[i].temperatura) != 1 || zonas[i].temperatura < -50 || zonas[i].temperatura > 60) {
+                printf("  Temperatura inválida. Rango permitido: -50 a 60 °C.\n");
+                while (getchar() != '\n');
+            } else {
+                break;
+            }
+        }
+
+        // Ingreso de humedad
+        while (1) {
+            printf("  Ingrese humedad actual (%%): ");
+            if (scanf("%f", &zonas[i].humedad) != 1 || zonas[i].humedad < 0 || zonas[i].humedad > 100) {
+                printf("Humedad inválida. Rango permitido: 0 a 100.\n");
+                while (getchar() != '\n');
+            } else {
+                break;
+            }
+        }
+
+        // Ingreso de viento
+        while (1) {
+            printf("  Ingrese velocidad del viento (km/h): ");
+            if (scanf("%f", &zonas[i].viento) != 1 || zonas[i].viento < 0 || zonas[i].viento > 300) {
+                printf("  Velocidad del viento inválida. Rango permitido: 0 a 300 km/h.\n");
+                while (getchar() != '\n');
+            } else {
+                break;
+            }
+        }
+
+        // Limpiar buffer
         while (getchar() != '\n');
     }
 }
+
 
 void predecirContaminacion(Zona* zonas, int cantidad) {
     printf("\nRESULTADOS DE LA PREDICCIÓN\n");
@@ -102,56 +144,88 @@ void predecirContaminacion(Zona* zonas, int cantidad) {
         for (int j = 0; j < 4; j++) {
             float suma = 0.0f;
             float peso = 0.0f;
+
+            // Promedio ponderado del contaminante
             for (int d = 0; d < 30; d++) {
                 float w = (float)(d + 1) / 30;
                 suma += zonas[i].contaminantes[d][j] * w;
                 peso += w;
             }
-            zonas[i].prediccion[j] = (peso != 0) ? suma / peso : 0;
-            printf("  %s → %.2f %s\n", 
+
+            float base = (peso != 0) ? suma / peso : 0;
+
+            // Ajuste basado en clima actual
+            float ajuste = 1.0f
+                + (zonas[i].temperatura - 25.0f) * 0.01f     // más calor, más contaminación
+                - (zonas[i].humedad - 50.0f) * 0.005f        // más humedad, menos contaminación
+                - (zonas[i].viento * 0.002f);                // más viento, dispersa más
+
+            if (ajuste < 0.8f) ajuste = 0.8f;
+            if (ajuste > 1.2f) ajuste = 1.2f;
+
+            zonas[i].prediccion[j] = base * ajuste;
+
+            printf("  %s → %.2f\n",
                    (j == 0) ? "CO2" : (j == 1) ? "SO2" : (j == 2) ? "NO2" : "PM2.5",
-                   zonas[i].prediccion[j], zonas[i].alerta[j] ? "(ALERTA)" : "");
+                   zonas[i].prediccion[j]);
         }
     }
 }
 
 void generarRecomendaciones(Zona* zonas, int cantidad) {
     for (int i = 0; i < cantidad; i++) {
+        zonas[i].recomendacion[0] = '\0';
         int alerta = 0;
+
         for (int j = 0; j < 4; j++) {
             if (zonas[i].alerta[j]) {
                 alerta = 1;
-                break;
+                float exceso = zonas[i].contaminantes[29][j];  // monitoreo actual
+                const char* cont = (j == 0) ? "CO2" : (j == 1) ? "SO2" : (j == 2) ? "NO2" : "PM2.5";
+
+                // Recomendación según intensidad
+                const char* medida;
+                if (exceso < 1.2 * 25 && j == 0) medida = "Promover uso de bicicleta y restringir autos privados.";
+                else if (exceso < 1.5 * 25) medida = "Reducir actividad industrial ligera.";
+                else if (exceso < 2.0 * 25) medida = "Activar control de emisiones y alertas públicas.";
+                else medida = "Evacuar zonas críticas y suspender actividades urbanas.";
+
+                char buffer[150];
+                snprintf(buffer, sizeof(buffer), "%s: %s ", cont, medida);
+
+                strncat(zonas[i].recomendacion, buffer, sizeof(zonas[i].recomendacion) - strlen(zonas[i].recomendacion) - 1);
             }
         }
-        if (alerta) {
-            strncpy(zonas[i].recomendacion,
-                "Controlar trafico, crear cronograma para actividades al aire libre y control de gases industriales.",
-                sizeof(zonas[i].recomendacion) - 1);
-        } else {
-            strncpy(zonas[i].recomendacion,
-                "Sin alerta. Mantener prácticas responsables.",
-                sizeof(zonas[i].recomendacion) - 1);
+
+        if (!alerta) {
+            strncpy(zonas[i].recomendacion, "Sin alerta. Mantener buenas prácticas ambientales.",
+                    sizeof(zonas[i].recomendacion));
         }
-        zonas[i].recomendacion[sizeof(zonas[i].recomendacion) - 1] = '\0';
+    }
+
+    printf("\nRECOMENDACIONES GENERADAS:\n");
+    for (int i = 0; i < cantidad; i++) {
+        printf("\nZona: %s\n%s\n", zonas[i].nombre, zonas[i].recomendacion);
     }
 }
 
 void exportarInforme(const char* nombreArchivo, Zona* zonas, int cantidad) {
-    FILE* f = fopen(nombreArchivo, "w");
+    FILE* f = fopen(nombreArchivo, "a");
     if (!f) {
         printf("No se pudo crear el informe.\n");
         return;
     }
 
+    fprintf(f, "\n\n==================== NUEVO INFORME ====================\n");
+    printf("\n\n==================== NUEVO INFORME ====================\n");
+
     imprimirInforme(f, zonas, cantidad);
+    imprimirInforme(stdout, zonas, cantidad);  // <- imprime en consola
+
     fclose(f);
-
-    printf("Informe exportado en %s\n\n", nombreArchivo);
-
-    // Imprimir también en consola
-    imprimirInforme(stdout, zonas, cantidad);
+    printf("Informe exportado en %s\n", nombreArchivo);
 }
+
 
 void guardarDatos(const char* nombreArchivo, Zona* zonas, int cantidad) {
     FILE* f = fopen(nombreArchivo, "wb");
@@ -329,24 +403,31 @@ void imprimirInforme(FILE* f, Zona* zonas, int cantidad) {
 }
 
 void actualizarHistoricoConMonitoreo(Zona* zonas, int cantidad) {
+    // 1. Cargar histórico existente
     cargarHistoricoDesdeArchivo("historico.txt", zonas, cantidad);
+
     for (int i = 0; i < cantidad; i++) {
-        // Desplazar días: d = d+1 hacia d = d
+        // 2. Desplazar días: del día 1 al día 29
         for (int d = 0; d < 29; d++) {
             for (int j = 0; j < 4; j++) {
                 zonas[i].contaminantes[d][j] = zonas[i].contaminantes[d + 1][j];
             }
         }
-        // El penúltimo día se actualiza con monitoreo actual (día 29)
+
+        // 3. Copiar los valores monitoreados (día actual) al último día del histórico
         for (int j = 0; j < 4; j++) {
-            zonas[i].contaminantes[29][j] = zonas[i].contaminantes[29][j];
+            zonas[i].contaminantes[29][j] = zonas[i].contaminantes[29][j]; // Este valor ya está ahí tras el monitoreo
+            // No hace falta reasignar, pero puedes dejarlo si quieres que sea explícito
         }
     }
+
+    // 4. Guardar todo el arreglo actualizado en el archivo
     FILE* f = fopen("historico.txt", "w");
     if (!f) {
         printf("Error al actualizar el archivo histórico.\n");
         return;
     }
+
     for (int i = 0; i < cantidad; i++) {
         for (int d = 0; d < 30; d++) {
             fprintf(f, "\"%s\" %d %.2f %.2f %.2f %.2f\n",
@@ -357,5 +438,7 @@ void actualizarHistoricoConMonitoreo(Zona* zonas, int cantidad) {
                     zonas[i].contaminantes[d][3]);
         }
     }
+
     fclose(f);
+    printf("Histórico actualizado con monitoreo actual.\n");
 }
